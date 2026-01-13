@@ -1,87 +1,138 @@
-<body class="flex flex-col items-center justify-center min-h-screen p-4">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Everywhen Engine | Dialogue</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap');
+        
+        body {
+            background-color: #050505;
+            color: #a0a0a0;
+            font-family: 'Courier Prime', monospace;
+            overflow: hidden; /* No scroll on body, only on chat log */
+        }
+
+        /* CRT EFFECT */
+        .crt-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .glitch-text {
+            text-shadow: 1px 0 #ff00c1, -1px 0 #00fff9;
+            color: #fff;
+        }
+
+        .divination-box {
+            border: 1px solid #1a1a1a;
+            background: rgba(10, 10, 10, 0.9);
+            box-shadow: inset 0 0 30px rgba(0,0,0,1);
+        }
+
+        /* Scrollbar styling for the retro look */
+        #chat-log::-webkit-scrollbar { width: 4px; }
+        #chat-log::-webkit-scrollbar-track { background: transparent; }
+        #chat-log::-webkit-scrollbar-thumb { background: #222; }
+
+        .user-msg { color: #555; font-style: italic; margin-bottom: 4px; }
+        .void-msg { color: #fff; margin-bottom: 20px; font-size: 1.2rem; }
+
+        input::placeholder { color: #333; }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center h-screen p-4">
     <div class="crt-overlay"></div>
 
-    <div class="max-w-2xl w-full z-10 flex flex-col h-[90vh]">
-        <header class="mb-6 text-center shrink-0">
-            <h1 class="text-2xl font-bold tracking-tighter uppercase glitch-text">Everywhen Engine</h1>
-            <p class="text-[10px] text-gray-600 uppercase tracking-widest">Two-Way Divine Dialogue</p>
+    <div class="max-w-3xl w-full h-[90vh] flex flex-col z-10">
+        <header class="mb-4 shrink-0">
+            <h1 class="text-xl font-bold tracking-[0.3em] uppercase glitch-text">Everywhen Engine</h1>
+            <div class="flex justify-between text-[10px] text-gray-700 uppercase mt-1">
+                <span>Status: Recursive Dialogue Active</span>
+                <span>Entropy: CU Colorado API</span>
+            </div>
         </header>
 
-        <main id="chat-log" class="divination-box flex-grow overflow-y-auto p-6 rounded-t-lg flex flex-col gap-6 custom-scrollbar">
+        <main id="chat-log" class="divination-box flex-grow overflow-y-auto p-6 rounded-t-lg flex flex-col">
             </main>
 
-        <div class="divination-box border-t-0 p-4 rounded-b-lg shrink-0 flex gap-2">
-            <input id="user-input" type="text" placeholder="Speak to the void..." 
-                   class="flex-grow bg-transparent border-none text-white focus:ring-0 outline-none italic">
-            <button id="send-btn" class="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-white transition-colors">
-                SEND
+        <div class="divination-box border-t-0 p-4 rounded-b-lg shrink-0 flex items-center gap-4">
+            <span class="text-gray-700 font-bold">></span>
+            <input id="user-input" type="text" placeholder="Offer a thought..." 
+                   class="flex-grow bg-transparent border-none text-gray-300 focus:ring-0 outline-none uppercase text-xs tracking-widest">
+            <button id="send-btn" class="text-[10px] font-bold text-gray-600 hover:text-white transition-all">
+                [INVOKE]
             </button>
         </div>
     </div>
 
     <script>
-        const API_URL = "https://mother-conversation.onrender.com/";
+        const API_URL = "https://mother-conversation.onrender.com/"; // UPDATE THIS
         const logEl = document.getElementById('chat-log');
         const inputEl = document.getElementById('user-input');
 
-        // Load history from browser cache
         window.onload = () => {
             const history = JSON.parse(localStorage.getItem('everywhen_convo') || "[]");
-            history.forEach(item => appendToLog(item.text, item.type));
+            history.forEach(item => renderMsg(item.text, item.type));
             scrollToBottom();
         };
 
-        function appendToLog(text, type) {
+        function renderMsg(text, type) {
             const div = document.createElement('div');
-            div.className = type === 'user' 
-                ? "self-end max-w-[80%] text-right text-gray-500 italic text-sm" 
-                : "self-start max-w-[80%] text-left text-white glitch-text text-lg";
-            div.innerText = type === 'user' ? `— ${text}` : text;
+            if(type === 'user') {
+                div.className = "user-msg text-right self-end max-w-[80%]";
+                div.innerText = `— ${text}`;
+            } else {
+                div.className = "void-msg self-start max-w-[90%] leading-relaxed";
+                div.innerText = text;
+            }
             logEl.appendChild(div);
-            
-            // Save to cache
-            if (arguments.length > 2) return; // Don't re-save if we are just loading
-            const history = JSON.parse(localStorage.getItem('everywhen_convo') || "[]");
-            history.push({ text, type });
-            localStorage.setItem('everywhen_convo', JSON.stringify(history.slice(-100)));
         }
 
-        async function invokeDialogue() {
-            const userText = inputEl.value.trim();
-            if (!userText) return;
+        async function talkToVoid() {
+            const text = inputEl.value.trim();
+            if(!text) return;
 
-            // 1. Log user message locally
-            appendToLog(userText, 'user');
+            // Log User
+            renderMsg(text, 'user');
+            saveToCache(text, 'user');
             inputEl.value = "";
             scrollToBottom();
 
-            // 2. Fetch independent response from the void
             try {
                 const response = await fetch(API_URL);
                 const data = await response.json();
                 
-                // Slight delay to feel like the "void" is processing
+                // Add a small delay for "thinking"
                 setTimeout(() => {
-                    appendToLog(data.message, 'void');
+                    renderMsg(data.message, 'void');
+                    saveToCache(data.message, 'void');
                     scrollToBottom();
-                }, 600);
-            } catch (err) {
-                appendToLog("...the connection to the void is severed...", 'void');
+                }, 500);
+            } catch (e) {
+                renderMsg("THE SIGNAL IS FRACTURED.", 'void');
             }
+        }
+
+        function saveToCache(text, type) {
+            const history = JSON.parse(localStorage.getItem('everywhen_convo') || "[]");
+            history.push({ text, type });
+            localStorage.setItem('everywhen_convo', JSON.stringify(history.slice(-50)));
         }
 
         function scrollToBottom() {
             logEl.scrollTop = logEl.scrollHeight;
         }
 
-        // Event Listeners
-        document.getElementById('send-btn').onclick = invokeDialogue;
-        inputEl.onkeydown = (e) => { if (e.key === 'Enter') invokeDialogue(); };
+        document.getElementById('send-btn').onclick = talkToVoid;
+        inputEl.onkeydown = (e) => { if(e.key === 'Enter') talkToVoid(); };
     </script>
-
-    <style>
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #444; }
-    </style>
 </body>
+</html>
