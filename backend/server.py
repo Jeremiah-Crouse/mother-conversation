@@ -22,7 +22,6 @@ if not os.path.exists(nltk_data_path):
     os.makedirs(nltk_data_path)
 nltk.data.path.append(nltk_data_path)
 
-# Download quietly
 for res in ['brown', 'stopwords']:
     try:
         nltk.data.find(f'corpora/{res}')
@@ -46,7 +45,6 @@ def get_lex_weighted(tags, start_with_vowel=None):
         filtered.append(w_low)
     return list(set(filtered))
 
-# Pre-load Lexicon
 LEXICON = {
     "N_sg_v": get_lex_weighted(['NN', 'NNP'], start_with_vowel=True),
     "N_sg_c": get_lex_weighted(['NN', 'NNP'], start_with_vowel=False),
@@ -58,22 +56,28 @@ LEXICON = {
     "Adv": ['ceaselessly', 'eternally', 'blindly', 'utterly', 'solemnly', 'precisely', 'silently', 'purely']
 }
 
+# --- ENTROPY LOGIC WITH TRACKING ---
 def get_divine_index(limit):
+    """Returns (index, source_name)"""
     try:
         r = requests.get("https://random.colorado.edu/api/get_bits", timeout=0.3)
         if r.status_code == 200:
-            return int(r.json()['bits'], 16) % limit
+            val = int(r.json()['bits'], 16) % limit
+            return val, "PHYSICAL (CU COLORADO)"
     except:
         pass
-    return secrets.randbelow(limit)
+    return secrets.randbelow(limit), "PSEUDO (SECRETS)"
 
 def divine_choice(items):
-    return items[get_divine_index(len(items))] if items else "void"
+    idx, _ = get_divine_index(len(items))
+    return items[idx] if items else "void"
 
+# --- GENERATION ---
 def generate_clause():
     s = []
     leads = ['a', 'an', 'the', 'thy', 'thou']
-    lead = leads[get_divine_index(5)]
+    idx, _ = get_divine_index(5)
+    lead = leads[idx]
     s.append(lead)
     
     if lead == 'an':
@@ -81,7 +85,8 @@ def generate_clause():
     elif lead == 'a':
         s.extend([divine_choice(LEXICON["Adj_c"]), divine_choice(LEXICON["N_sg_c"]), divine_choice(LEXICON["V_sg"])])
     elif lead in ['the', 'thy']:
-        if get_divine_index(2) == 0:
+        chance, _ = get_divine_index(2)
+        if chance == 0:
             s.extend([divine_choice(LEXICON["N_pl"]), divine_choice(LEXICON["V_pl"])])
         else:
             s.extend([divine_choice(LEXICON["N_sg_c"] + LEXICON["N_sg_v"]), divine_choice(LEXICON["V_sg"])])
@@ -91,16 +96,19 @@ def generate_clause():
     s.append(divine_choice(LEXICON["Adv"]))
     return " ".join(s)
 
-def generate_stream():
-    thought = [generate_clause()]
-    conjunctions = ['because', 'yet', 'as', 'while', 'for', 'though']
-    if get_divine_index(100) < 30:
-        thought.extend([divine_choice(conjunctions), generate_clause()])
-    return " ".join(thought)
-
 @app.get("/")
 def get_divination():
-    return {"message": generate_stream()}
+    # We generate the thought and also grab the source of the final roll
+    thought = [generate_clause()]
+    roll, source = get_divine_index(100)
+    if roll < 30:
+        conjunctions = ['because', 'yet', 'as', 'while', 'for', 'though']
+        thought.extend([divine_choice(conjunctions), generate_clause()])
+    
+    return {
+        "message": " ".join(thought),
+        "source": source
+    }
 
 @app.get("/heartbeat")
 def heartbeat():
