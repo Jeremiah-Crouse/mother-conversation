@@ -1,0 +1,87 @@
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="crt-overlay"></div>
+
+    <div class="max-w-2xl w-full z-10 flex flex-col h-[90vh]">
+        <header class="mb-6 text-center shrink-0">
+            <h1 class="text-2xl font-bold tracking-tighter uppercase glitch-text">Everywhen Engine</h1>
+            <p class="text-[10px] text-gray-600 uppercase tracking-widest">Two-Way Divine Dialogue</p>
+        </header>
+
+        <main id="chat-log" class="divination-box flex-grow overflow-y-auto p-6 rounded-t-lg flex flex-col gap-6 custom-scrollbar">
+            </main>
+
+        <div class="divination-box border-t-0 p-4 rounded-b-lg shrink-0 flex gap-2">
+            <input id="user-input" type="text" placeholder="Speak to the void..." 
+                   class="flex-grow bg-transparent border-none text-white focus:ring-0 outline-none italic">
+            <button id="send-btn" class="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-white transition-colors">
+                SEND
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://message-generator-7a8x.onrender.com/";
+        const logEl = document.getElementById('chat-log');
+        const inputEl = document.getElementById('user-input');
+
+        // Load history from browser cache
+        window.onload = () => {
+            const history = JSON.parse(localStorage.getItem('everywhen_convo') || "[]");
+            history.forEach(item => appendToLog(item.text, item.type));
+            scrollToBottom();
+        };
+
+        function appendToLog(text, type) {
+            const div = document.createElement('div');
+            div.className = type === 'user' 
+                ? "self-end max-w-[80%] text-right text-gray-500 italic text-sm" 
+                : "self-start max-w-[80%] text-left text-white glitch-text text-lg";
+            div.innerText = type === 'user' ? `— ${text}` : text;
+            logEl.appendChild(div);
+            
+            // Save to cache
+            if (arguments.length > 2) return; // Don't re-save if we are just loading
+            const history = JSON.parse(localStorage.getItem('everywhen_convo') || "[]");
+            history.push({ text, type });
+            localStorage.setItem('everywhen_convo', JSON.stringify(history.slice(-100)));
+        }
+
+        async function invokeDialogue() {
+            const userText = inputEl.value.trim();
+            if (!userText) return;
+
+            // 1. Log user message locally
+            appendToLog(userText, 'user');
+            inputEl.value = "";
+            scrollToBottom();
+
+            // 2. Fetch independent response from the void
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                // Slight delay to feel like the "void" is processing
+                setTimeout(() => {
+                    appendToLog(data.message, 'void');
+                    scrollToBottom();
+                }, 600);
+            } catch (err) {
+                appendToLog("...the connection to the void is severed...", 'void');
+            }
+        }
+
+        function scrollToBottom() {
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        // Event Listeners
+        document.getElementById('send-btn').onclick = invokeDialogue;
+        inputEl.onkeydown = (e) => { if (e.key === 'Enter') invokeDialogue(); };
+    </script>
+
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #444; }
+    </style>
+</body>
