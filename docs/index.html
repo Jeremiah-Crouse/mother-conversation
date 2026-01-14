@@ -3,175 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Everywhen Engine | Dialogue</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>THE EVERYWHEN ENGINE: QUANTUM DRIFT</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap');
-        
         body {
-            background-color: #050505;
-            color: #a0a0a0;
-            font-family: 'Courier Prime', monospace;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            background-color: #0a0a0a;
+            color: #d0d0d0;
+            font-family: "Courier New", Courier, monospace;
             margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+            line-height: 1.4;
         }
 
-        /* CRT SCANLINE OVERLAY */
-        .crt-overlay {
+        #terminal {
+            max-width: 800px;
+            margin: 0 auto;
+            word-wrap: break-word;
+            padding-bottom: 100px;
+        }
+
+        .token {
+            transition: all 0.2s ease;
+        }
+
+        .quantum {
+            color: #00ffcc;
+            text-shadow: 0 0 5px rgba(0, 255, 204, 0.3);
+        }
+
+        .pseudo {
+            color: #ff3300;
+            opacity: 0.7;
+        }
+
+        #status-bar {
             position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
-            background-size: 100% 3px, 3px 100%;
-            pointer-events: none;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #1a1a1a;
+            padding: 10px 20px;
+            font-size: 12px;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
             z-index: 100;
         }
 
-        .glitch-text {
-            text-shadow: 1px 0 #ff00c1, -1px 0 #00fff9;
-            color: #fff;
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 18px;
+            background: #00ffcc;
+            animation: blink 1s infinite;
+            vertical-align: middle;
         }
 
-        .divination-box {
-            border: 1px solid #1a1a1a;
-            background: rgba(10, 10, 10, 0.95);
-            box-shadow: inset 0 0 40px rgba(0,0,0,1);
-        }
-
-        #chat-log::-webkit-scrollbar { width: 4px; }
-        #chat-log::-webkit-scrollbar-track { background: transparent; }
-        #chat-log::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
-
-        .user-msg { color: #444; font-style: italic; margin-bottom: 4px; }
-        .void-msg { color: #fff; margin-bottom: 24px; font-size: 1.25rem; line-height: 1.4; }
-
-        input::placeholder { color: #222; }
-        
-        /* Smooth status transitions */
-        #entropy-display {
-            transition: all 0.5s ease;
-        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
     </style>
 </head>
 <body>
-    <div class="crt-overlay"></div>
 
-    <div class="max-w-3xl w-full h-[90vh] flex flex-col z-10 px-4">
-        <header class="mb-4 shrink-0 px-2">
-            <h1 class="text-xl font-bold tracking-[0.4em] uppercase glitch-text">Everywhen Engine</h1>
-            <div class="flex justify-between text-[9px] text-gray-700 uppercase mt-2 tracking-widest font-bold">
-                <span>Status: Dialogue_Active</span>
-                <span id="entropy-display">Entropy: Awaiting Signal...</span>
-            </div>
-        </header>
+    <div id="terminal">
+        <div id="output"></div>
+        <span class="cursor"></span>
+    </div>
 
-        <main id="chat-log" class="divination-box flex-grow overflow-y-auto p-8 rounded-t-lg flex flex-col">
-            </main>
-
-        <div class="divination-box border-t-0 p-5 rounded-b-lg shrink-0 flex items-center gap-4">
-            <span class="text-gray-800 font-bold ml-2">></span>
-            <input id="user-input" type="text" placeholder="Offer a thought to the void..." 
-                   class="flex-grow bg-transparent border-none text-gray-400 focus:ring-0 outline-none uppercase text-xs tracking-[0.2em]">
-            <button id="send-btn" class="text-[10px] font-bold text-gray-700 hover:text-white transition-all mr-2">
-                [INVOKE]
-            </button>
-        </div>
+    <div id="status-bar">
+        <span>MODE: CEASELESS QUANTUM DRIFT (T=∞)</span>
+        <span id="entropy-source">INITIALIZING...</span>
     </div>
 
     <script>
-        // Replace with your actual Render URL
-        const API_URL = "https://mother-conversation.onrender.com/"; 
-        const logEl = document.getElementById('chat-log');
-        const inputEl = document.getElementById('user-input');
-        const entropyEl = document.getElementById('entropy-display');
+        // REPLACE THIS WITH YOUR ACTUAL RENDER URL
+        const API_URL = "https://mother-conversation.onrender.com/invoke";
+        const output = document.getElementById('output');
+        const sourceDisplay = document.getElementById('entropy-source');
 
-        // Initial Load from Cache
-        window.onload = () => {
-            const history = JSON.parse(localStorage.getItem('everywhen_convo') || "[]");
-            history.forEach(item => renderMsg(item.text, item.type));
-            scrollToBottom();
-        };
-
-        function renderMsg(text, type) {
-            const div = document.createElement('div');
-            if(type === 'user') {
-                div.className = "user-msg text-right self-end max-w-[80%]";
-                div.innerText = `— ${text}`;
-            } else {
-                div.className = "void-msg self-start max-w-[95%] leading-relaxed";
-                div.innerText = text;
-            }
-            logEl.appendChild(div);
-        }
-
-        async function talkToVoid() {
-            const text = inputEl.value.trim();
-            if(!text) return;
-
-            // 1. Render User Input locally
-            renderMsg(text, 'user');
-            saveToCache(text, 'user');
-            inputEl.value = "";
-            scrollToBottom();
-
+        async function drift() {
             try {
-                // 2. Fetch from Backend
                 const response = await fetch(API_URL);
+                if (!response.ok) throw new Error("Server Heat");
+                
                 const data = await response.json();
                 
-                // 3. Update Entropy Status Color Logic
-                updateEntropyUI(data.source);
+                // Create token element
+                const span = document.createElement('span');
+                span.className = 'token ' + (data.source.includes("QUANTUM") ? 'quantum' : 'pseudo');
                 
-                // 4. Render Mother's Response with a brief "Signal" delay
-                setTimeout(() => {
-                    renderMsg(data.message, 'void');
-                    saveToCache(data.message, 'void');
-                    scrollToBottom();
-                }, 400);
+                // Tokens often include spaces or newlines, preserve them
+                span.innerText = data.token;
+                
+                output.appendChild(span);
+                sourceDisplay.innerText = "SOURCE: " + data.source;
 
-            } catch (e) {
-                renderMsg("SIGNAL LOST. THE VOID IS OCCUPIED.", 'void');
-                entropyEl.innerText = "Entropy: DISCONNECTED";
-                entropyEl.style.color = "#ff3131";
+                // Auto-scroll to bottom
+                window.scrollTo(0, document.body.scrollHeight);
+
+            } catch (err) {
+                sourceDisplay.innerText = "SOURCE: DISCONNECTED / RECONNECTING...";
             }
+
+            // The 'Ceaseless' Loop - Adjusted for network speed
+            // Set to 50ms for a rapid "goose chase" or 200ms for readability
+            setTimeout(drift, 100);
         }
 
-        function updateEntropyUI(source) {
-            entropyEl.innerText = `Entropy: ${source}`;
-            
-            if (source.includes("QUANTUM")) {
-                entropyEl.style.color = "#00f9ff"; // Cyan
-                entropyEl.style.textShadow = "0 0 10px rgba(0, 249, 255, 0.6)";
-            } else if (source.includes("PHYSICAL")) {
-                entropyEl.style.color = "#39ff14"; // Neon Green
-                entropyEl.style.textShadow = "0 0 10px rgba(57, 255, 20, 0.6)";
-            } else if (source.includes("ATMOSPHERIC")) {
-                entropyEl.style.color = "#ffae00"; // Gold/Orange for Atmosphere
-                entropyEl.style.textShadow = "0 0 10px rgba(255, 174, 0, 0.6)";
-            } else {
-                entropyEl.style.color = "#ff3131"; // Red (Pseudo fallback)
-                entropyEl.style.textShadow = "none";
-            }
-        }
-
-        function saveToCache(text, type) {
-            const history = JSON.parse(localStorage.getItem('everywhen_convo') || "[]");
-            history.push({ text, type });
-            // Save last 100 messages
-            localStorage.setItem('everywhen_convo', JSON.stringify(history.slice(-100)));
-        }
-
-        function scrollToBottom() {
-            logEl.scrollTop = logEl.scrollHeight;
-        }
-
-        // Click or Enter to Send
-        document.getElementById('send-btn').onclick = talkToVoid;
-        inputEl.onkeydown = (e) => { if(e.key === 'Enter') talkToVoid(); };
+        // Start the engine
+        drift();
     </script>
 </body>
 </html>
