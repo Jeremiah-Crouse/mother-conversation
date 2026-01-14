@@ -16,20 +16,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- NLTK DATA SETUP ---
+# --- NLTK DATA SETUP (LOCAL ONLY) ---
+# We no longer download; we simply point to the bundled directory
 nltk_data_path = os.path.join(os.getcwd(), "nltk_data")
-if not os.path.exists(nltk_data_path):
-    os.makedirs(nltk_data_path)
 nltk.data.path.append(nltk_data_path)
 
-for res in ['brown', 'stopwords']:
-    try:
-        nltk.data.find(f'corpora/{res}')
-    except LookupError:
-        nltk.download(res, download_dir=nltk_data_path, quiet=True)
-
-brown_words = brown.tagged_words()
-stop_words = set(stopwords.words('english'))
+# Pre-load the data into memory for instant generation
+try:
+    brown_words = brown.tagged_words()
+    stop_words = set(stopwords.words('english'))
+except Exception as e:
+    print(f"Error loading bundled NLTK data: {e}")
+    # Fallback to empty if data is missing to prevent crash
+    brown_words = []
+    stop_words = set()
 
 def get_lex_weighted(tags, start_with_vowel=None):
     vowels = 'aeiou'
@@ -45,6 +45,7 @@ def get_lex_weighted(tags, start_with_vowel=None):
         filtered.append(w_low)
     return list(set(filtered))
 
+# Build the Lexicon once during startup
 LEXICON = {
     "N_sg_v": get_lex_weighted(['NN', 'NNP'], start_with_vowel=True),
     "N_sg_c": get_lex_weighted(['NN', 'NNP'], start_with_vowel=False),
@@ -56,10 +57,12 @@ LEXICON = {
     "Adv": ['ceaselessly', 'eternally', 'blindly', 'utterly', 'solemnly', 'precisely', 'silently', 'purely']
 }
 
-# --- IMPROVED ENTROPY LOGIC ---
+# --- MULTI-TIER ENTROPY LOGIC ---
 
 def get_divine_index(limit):
-    """Tiered Entropy Fetch: Quantum -> Classical -> Pseudo"""
+    if limit <= 1: return 0, "DETERMINISTIC"
+
+    # 1. Quantum (CUB)
     try:
         r = requests.get("https://random.colorado.edu/api/get_bits?type=quantum", timeout=0.3)
         if r.status_code == 200:
@@ -67,6 +70,7 @@ def get_divine_index(limit):
     except:
         pass
 
+    # 2. Physical (CUB)
     try:
         r = requests.get("https://random.colorado.edu/api/get_bits?type=classical", timeout=0.3)
         if r.status_code == 200:
@@ -74,14 +78,22 @@ def get_divine_index(limit):
     except:
         pass
 
+    # 3. Atmospheric (Random.org)
+    try:
+        r = requests.get(f"https://www.random.org/integers/?num=1&min=0&max={limit-1}&col=1&base=10&format=plain&rnd=new", timeout=0.4)
+        if r.status_code == 200:
+            return int(r.text.strip()), "ATMOSPHERIC (RANDOM.ORG)"
+    except:
+        pass
+
+    # 4. Fallback
     return secrets.randbelow(limit), "PSEUDO (LOCAL SECRETS)"
 
 def divine_choice(items):
-    # This helper now correctly uses the tiered entropy
     idx, _ = get_divine_index(len(items))
     return items[idx] if items else "void"
 
-# --- GENERATION ---
+# --- GENERATION ENGINE ---
 
 def generate_clause():
     s = []
@@ -110,11 +122,8 @@ def generate_clause():
 
 @app.get("/")
 def get_divination():
-    # Primary roll to decide complexity and capture source
     roll, source = get_divine_index(100)
-    
     thought = [generate_clause()]
-    
     if roll < 30:
         conjunctions = ['because', 'yet', 'as', 'while', 'for', 'though']
         thought.extend([divine_choice(conjunctions), generate_clause()])
