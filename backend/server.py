@@ -59,13 +59,7 @@ LEXICON = {
 # --- IMPROVED ENTROPY LOGIC ---
 
 def get_divine_index(limit):
-    """
-    Tiered Entropy Fetch:
-    1. Quantum (CUB)
-    2. Classical Physical (CUB)
-    3. Pseudo-Random (Local Secrets)
-    """
-    # 1. Try Quantum
+    """Tiered Entropy Fetch: Quantum -> Classical -> Pseudo"""
     try:
         r = requests.get("https://random.colorado.edu/api/get_bits?type=quantum", timeout=0.3)
         if r.status_code == 200:
@@ -73,7 +67,6 @@ def get_divine_index(limit):
     except:
         pass
 
-    # 2. Try Classical Physical
     try:
         r = requests.get("https://random.colorado.edu/api/get_bits?type=classical", timeout=0.3)
         if r.status_code == 200:
@@ -81,33 +74,15 @@ def get_divine_index(limit):
     except:
         pass
 
-    # 3. Final Fallback
     return secrets.randbelow(limit), "PSEUDO (LOCAL SECRETS)"
 
-# --- UPDATE THE ENDPOINT ---
-
-@app.get("/")
-def get_divination():
-    # We use the index function to get the source of the generation
-    # Since multiple rolls happen, we track the source of the primary 'lead'
-    roll, source = get_divine_index(100)
-    
-    thought = [generate_clause()]
-    
-    if roll < 30:
-        conjunctions = ['because', 'yet', 'as', 'while', 'for', 'though']
-        thought.extend([divine_choice(conjunctions), generate_clause()])
-    
-    return {
-        "message": " ".join(thought),
-        "source": source
-    }
-
 def divine_choice(items):
+    # This helper now correctly uses the tiered entropy
     idx, _ = get_divine_index(len(items))
     return items[idx] if items else "void"
 
 # --- GENERATION ---
+
 def generate_clause():
     s = []
     leads = ['a', 'an', 'the', 'thy', 'thou']
@@ -130,6 +105,24 @@ def generate_clause():
 
     s.append(divine_choice(LEXICON["Adv"]))
     return " ".join(s)
+
+# --- ENDPOINTS ---
+
+@app.get("/")
+def get_divination():
+    # Primary roll to decide complexity and capture source
+    roll, source = get_divine_index(100)
+    
+    thought = [generate_clause()]
+    
+    if roll < 30:
+        conjunctions = ['because', 'yet', 'as', 'while', 'for', 'though']
+        thought.extend([divine_choice(conjunctions), generate_clause()])
+    
+    return {
+        "message": " ".join(thought),
+        "source": source
+    }
 
 @app.get("/heartbeat")
 def heartbeat():
