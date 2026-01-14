@@ -2,61 +2,128 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>THE EVERYWHEN ENGINE: T=∞</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>THE EVERYWHEN: MOBILE DRIFT</title>
     <style>
+        :root {
+            --bg: #050505;
+            --terminal-green: #00ffcc;
+            --fallback-red: #ff3300;
+        }
+
         body {
-            background-color: #050505;
-            color: #00ffcc;
+            background-color: var(--bg);
+            color: var(--terminal-green);
             font-family: 'Courier New', Courier, monospace;
-            padding: 20px;
-            overflow-y: scroll;
+            margin: 0;
+            padding: 15px;
+            /* Use clamp to ensure text is never too small on mobile */
+            font-size: clamp(14px, 4vw, 18px); 
+            line-height: 1.5;
+            overflow-x: hidden;
         }
-        #output {
-            white-space: pre-wrap; /* Crucial for showing the 'space' tokens */
-            word-break: break-all;
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        .pseudo { color: #ff3300; }
-        #status {
+
+        #status-bar {
             position: fixed;
-            top: 0; left: 0; width: 100%;
-            background: rgba(0,0,0,0.8);
-            border-bottom: 1px solid #00ffcc;
-            padding: 5px 20px;
-            font-size: 11px;
+            top: 0; left: 0; right: 0;
+            background: rgba(10, 10, 10, 0.95);
+            border-bottom: 1px solid #333;
+            padding: 10px;
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 1000;
+            text-transform: uppercase;
         }
+
+        #output {
+            margin-top: 40px;
+            margin-bottom: 80px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        button {
+            background: #1a1a1a;
+            color: var(--terminal-green);
+            border: 1px solid var(--terminal-green);
+            padding: 12px 20px;
+            font-family: inherit;
+            font-size: 12px;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:active { background: var(--terminal-green); color: black; }
+
+        .pseudo { color: var(--fallback-red); }
     </style>
 </head>
 <body>
-    <div id="status">BUFFERED QUANTUM STREAM // IP RECOVERY MODE</div>
+
+    <div id="status-bar">
+        <span id="source-display">INITIALIZING...</span>
+        <span>T = ∞</span>
+    </div>
+
     <div id="output"></div>
 
+    <div class="controls">
+        <button id="toggle-btn">PAUSE</button>
+        <button onclick="document.getElementById('output').innerHTML=''">CLEAR</button>
+    </div>
+
     <script>
-        const API_URL = "https://mother-conversation.onrender.com/invoke";
+        const API_URL = "https://your-render-url.onrender.com/invoke";
         const output = document.getElementById('output');
+        const sourceDisplay = document.getElementById('source-display');
+        const toggleBtn = document.getElementById('toggle-btn');
+        
+        let isPaused = false;
 
-        async function step() {
-            try {
-                const res = await fetch(API_URL);
-                const data = await res.json();
-                
-                const span = document.createElement('span');
-                if (data.source.includes("LOCAL")) span.className = "pseudo";
-                span.innerText = data.token;
-                
-                output.appendChild(span);
+        toggleBtn.onclick = () => {
+            isPaused = !isPaused;
+            toggleBtn.innerText = isPaused ? "RESUME" : "PAUSE";
+        };
 
-                // Auto-scroll
-                if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
-                    window.scrollTo(0, document.body.scrollHeight);
+        async function drift() {
+            if (!isPaused) {
+                try {
+                    const res = await fetch(API_URL);
+                    const data = await res.json();
+                    
+                    const span = document.createElement('span');
+                    if (data.source.includes("LOCAL")) span.className = "pseudo";
+                    span.innerText = data.token;
+                    
+                    output.appendChild(span);
+                    sourceDisplay.innerText = data.source;
+
+                    // Improved auto-scroll for mobile
+                    window.scrollTo({
+                        top: document.body.scrollHeight,
+                        behavior: 'auto'
+                    });
+                } catch (e) {
+                    sourceDisplay.innerText = "LOST CONNECTION";
                 }
-            } catch (e) {}
-            
-            // 50ms = 20 tokens per second. Fast but readable.
-            setTimeout(step, 50); 
+            }
+            // 80ms is usually the sweet spot for mobile reading speed
+            setTimeout(drift, 80);
         }
-        step();
+
+        drift();
     </script>
 </body>
 </html>
