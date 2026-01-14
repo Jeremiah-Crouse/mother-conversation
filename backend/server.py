@@ -5,10 +5,10 @@ import requests
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from collections import deque
 
 app = FastAPI()
 
-# Enable CORS for Vercel
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,40 +17,46 @@ app.add_middleware(
 )
 
 # Load the 100k token library
-# Ensure tokens.json is in your /backend folder
 TOKEN_PATH = os.path.join(os.getcwd(), "tokens.json")
-try:
-    with open(TOKEN_PATH, "r") as f:
-        TOKENS = json.load(f)
-except Exception as e:
-    print(f"Error loading tokens: {e}")
-    TOKENS = ["[void]", "[null]", "[error]"]
+with open(TOKEN_PATH, "r") as f:
+    TOKENS = json.load(f)
 
-def get_quantum_index(limit):
-    """Fetch 4 bytes from LFDR QRNG and map to token library."""
+# The Quantum Buffer
+# We store indices here so we don't have to hit the API every 100ms
+QUANTUM_BUFFER = deque()
+
+def refill_buffer():
+    """
+    Fetches a massive block of entropy from LFDR (e.g., 400 bytes).
+    Each token needs 4 bytes (for 100k+ range), so this gives us 100 tokens.
+    """
     try:
-        # Requesting 4 bytes in HEX to cover the 100k+ token range
-        r = requests.get("https://lfdr.de/qrng_api/qrng?length=4&format=HEX", timeout=1.5)
+        # Request 400 bytes (100 tokens worth of entropy)
+        r = requests.get("https://lfdr.de/qrng_api/qrng?length=400&format=HEX", timeout=2.0)
         if r.status_code == 200:
-            hex_val = r.json().get('qrn')
-            int_val = int(hex_val, 16)
-            return int_val % limit, "QUANTUM (LFDR.DE)"
-    except:
-        pass
-    # Fallback to local entropy if API is down
-    return secrets.randbelow(limit), "PSEUDO (LOCAL)"
+            raw_hex = r.json().get('qrn')
+            # Break the long hex string into 8-character chunks (4 bytes each)
+            chunks = [raw_hex[i:i+8] for i in range(0, len(raw_hex), 8)]
+            for c in chunks:
+                val = int(c, 16)
+                QUANTUM_BUFFER.append((val % len(TOKENS), "QUANTUM (BUFFERED)"))
+            return True
+    except Exception as e:
+        print(f"Buffer Refill Error: {e}")
+    return False
 
 @app.get("/invoke")
 def invoke():
-    idx, source = get_quantum_index(len(TOKENS))
-    return {
-        "token": TOKENS[idx],
-        "source": source
-    }
+    # If buffer is empty, try to refill
+    if not QUANTUM_BUFFER:
+        success = refill_buffer()
+        if not success:
+            # Fallback to local if API is totally blocked
+            return {"token": secrets.choice(TOKENS), "source": "LOCAL (FALLBACK)"}
 
-@app.get("/heartbeat")
-def heartbeat():
-    return {"status": "alive"}
+    # Pop the next quantum outcome from our local queue
+    idx, source = QUANTUM_BUFFER.popleft()
+    return {"token": TOKENS[idx], "source": source}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))

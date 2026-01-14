@@ -2,115 +2,61 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>THE EVERYWHEN ENGINE: QUANTUM DRIFT</title>
+    <title>THE EVERYWHEN ENGINE: T=∞</title>
     <style>
         body {
-            background-color: #0a0a0a;
-            color: #d0d0d0;
-            font-family: "Courier New", Courier, monospace;
-            margin: 0;
-            padding: 20px;
-            overflow-x: hidden;
-            line-height: 1.4;
-        }
-
-        #terminal {
-            max-width: 800px;
-            margin: 0 auto;
-            word-wrap: break-word;
-            padding-bottom: 100px;
-        }
-
-        .token {
-            transition: all 0.2s ease;
-        }
-
-        .quantum {
+            background-color: #050505;
             color: #00ffcc;
-            text-shadow: 0 0 5px rgba(0, 255, 204, 0.3);
+            font-family: 'Courier New', Courier, monospace;
+            padding: 20px;
+            overflow-y: scroll;
         }
-
-        .pseudo {
-            color: #ff3300;
-            opacity: 0.7;
+        #output {
+            white-space: pre-wrap; /* Crucial for showing the 'space' tokens */
+            word-break: break-all;
+            font-size: 14px;
+            opacity: 0.9;
         }
-
-        #status-bar {
+        .pseudo { color: #ff3300; }
+        #status {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: #1a1a1a;
-            padding: 10px 20px;
-            font-size: 12px;
-            border-top: 1px solid #333;
-            display: flex;
-            justify-content: space-between;
-            z-index: 100;
+            top: 0; left: 0; width: 100%;
+            background: rgba(0,0,0,0.8);
+            border-bottom: 1px solid #00ffcc;
+            padding: 5px 20px;
+            font-size: 11px;
         }
-
-        .cursor {
-            display: inline-block;
-            width: 10px;
-            height: 18px;
-            background: #00ffcc;
-            animation: blink 1s infinite;
-            vertical-align: middle;
-        }
-
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
     </style>
 </head>
 <body>
-
-    <div id="terminal">
-        <div id="output"></div>
-        <span class="cursor"></span>
-    </div>
-
-    <div id="status-bar">
-        <span>MODE: CEASELESS QUANTUM DRIFT (T=∞)</span>
-        <span id="entropy-source">INITIALIZING...</span>
-    </div>
+    <div id="status">BUFFERED QUANTUM STREAM // IP RECOVERY MODE</div>
+    <div id="output"></div>
 
     <script>
-        // REPLACE THIS WITH YOUR ACTUAL RENDER URL
         const API_URL = "https://mother-conversation.onrender.com/invoke";
         const output = document.getElementById('output');
-        const sourceDisplay = document.getElementById('entropy-source');
 
-        async function drift() {
+        async function step() {
             try {
-                const response = await fetch(API_URL);
-                if (!response.ok) throw new Error("Server Heat");
+                const res = await fetch(API_URL);
+                const data = await res.json();
                 
-                const data = await response.json();
-                
-                // Create token element
                 const span = document.createElement('span');
-                span.className = 'token ' + (data.source.includes("QUANTUM") ? 'quantum' : 'pseudo');
-                
-                // Tokens often include spaces or newlines, preserve them
+                if (data.source.includes("LOCAL")) span.className = "pseudo";
                 span.innerText = data.token;
                 
                 output.appendChild(span);
-                sourceDisplay.innerText = "SOURCE: " + data.source;
 
-                // Auto-scroll to bottom
-                window.scrollTo(0, document.body.scrollHeight);
-
-            } catch (err) {
-                sourceDisplay.innerText = "SOURCE: DISCONNECTED / RECONNECTING...";
-            }
-
-            // The 'Ceaseless' Loop - Adjusted for network speed
-            // Set to 50ms for a rapid "goose chase" or 200ms for readability
-            setTimeout(drift, 100);
+                // Auto-scroll
+                if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
+                    window.scrollTo(0, document.body.scrollHeight);
+                }
+            } catch (e) {}
+            
+            // 50ms = 20 tokens per second. Fast but readable.
+            setTimeout(step, 50); 
         }
-
-        // Start the engine
-        drift();
+        step();
     </script>
 </body>
 </html>
