@@ -45,6 +45,10 @@ def refill_buffer():
         print(f"Buffer Refill Error: {e}")
     return False
 
+@app.get("/heartbeat")
+def heartbeat():
+    return "OK" # Just a string, no bulky JSON
+
 @app.get("/invoke")
 def invoke():
     # If buffer is empty, try to refill
