@@ -56,17 +56,52 @@ LEXICON = {
     "Adv": ['ceaselessly', 'eternally', 'blindly', 'utterly', 'solemnly', 'precisely', 'silently', 'purely']
 }
 
-# --- ENTROPY LOGIC WITH TRACKING ---
+# --- IMPROVED ENTROPY LOGIC ---
+
 def get_divine_index(limit):
-    """Returns (index, source_name)"""
+    """
+    Tiered Entropy Fetch:
+    1. Quantum (CUB)
+    2. Classical Physical (CUB)
+    3. Pseudo-Random (Local Secrets)
+    """
+    # 1. Try Quantum
     try:
-        r = requests.get("https://random.colorado.edu/api/get_bits", timeout=0.3)
+        r = requests.get("https://random.colorado.edu/api/get_bits?type=quantum", timeout=0.3)
         if r.status_code == 200:
-            val = int(r.json()['bits'], 16) % limit
-            return val, "PHYSICAL (CU COLORADO)"
+            return int(r.json()['bits'], 16) % limit, "QUANTUM (CUB)"
     except:
         pass
-    return secrets.randbelow(limit), "PSEUDO (SECRETS)"
+
+    # 2. Try Classical Physical
+    try:
+        r = requests.get("https://random.colorado.edu/api/get_bits?type=classical", timeout=0.3)
+        if r.status_code == 200:
+            return int(r.json()['bits'], 16) % limit, "PHYSICAL (CUB CLASSICAL)"
+    except:
+        pass
+
+    # 3. Final Fallback
+    return secrets.randbelow(limit), "PSEUDO (LOCAL SECRETS)"
+
+# --- UPDATE THE ENDPOINT ---
+
+@app.get("/")
+def get_divination():
+    # We use the index function to get the source of the generation
+    # Since multiple rolls happen, we track the source of the primary 'lead'
+    roll, source = get_divine_index(100)
+    
+    thought = [generate_clause()]
+    
+    if roll < 30:
+        conjunctions = ['because', 'yet', 'as', 'while', 'for', 'though']
+        thought.extend([divine_choice(conjunctions), generate_clause()])
+    
+    return {
+        "message": " ".join(thought),
+        "source": source
+    }
 
 def divine_choice(items):
     idx, _ = get_divine_index(len(items))
@@ -95,20 +130,6 @@ def generate_clause():
 
     s.append(divine_choice(LEXICON["Adv"]))
     return " ".join(s)
-
-@app.get("/")
-def get_divination():
-    # We generate the thought and also grab the source of the final roll
-    thought = [generate_clause()]
-    roll, source = get_divine_index(100)
-    if roll < 30:
-        conjunctions = ['because', 'yet', 'as', 'while', 'for', 'though']
-        thought.extend([divine_choice(conjunctions), generate_clause()])
-    
-    return {
-        "message": " ".join(thought),
-        "source": source
-    }
 
 @app.get("/heartbeat")
 def heartbeat():
